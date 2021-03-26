@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>JZ80</title>
+    <style>
+        .float-container {
+            border: 3px solid #fff;
+        }
+
+        .float-child {
+            float: left;
+            padding-right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" style="visibility: hidden;" disabled/>
+    <input type="checkbox" class="data" value="7" disabled>
+    <input type="checkbox" class="data" value="6" disabled>
+    <input type="checkbox" class="data" value="5" disabled>
+    <input type="checkbox" class="data" value="4" disabled>
+    <input type="checkbox" class="data" value="3" disabled>
+    <input type="checkbox" class="data" value="2" disabled>
+    <input type="checkbox" class="data" value="1" disabled>
+    <input type="checkbox" class="data" value="0" disabled>
+    <span id="data_display">0x00</span>
+    <br />
+
+    <input type="checkbox" class="address" value="15" disabled>
+    <input type="checkbox" class="address" value="14" disabled>
+    <input type="checkbox" class="address" value="13" disabled>
+    <input type="checkbox" class="address" value="12" disabled>
+    <input type="checkbox" class="address" value="11" disabled>
+    <input type="checkbox" class="address" value="10" disabled>
+    <input type="checkbox" class="address" value="9" disabled>
+    <input type="checkbox" class="address" value="8" disabled>
+    <input type="checkbox" class="address" value="7" disabled>
+    <input type="checkbox" class="address" value="6" disabled>
+    <input type="checkbox" class="address" value="5" disabled>
+    <input type="checkbox" class="address" value="4" disabled>
+    <input type="checkbox" class="address" value="3" disabled>
+    <input type="checkbox" class="address" value="2" disabled>
+    <input type="checkbox" class="address" value="1" disabled>
+    <input type="checkbox" class="address" value="0" disabled>
+    <span id="address_display">0x00</span>
+    <br />
+
+    <input type="checkbox" class="switch" value="15">
+    <input type="checkbox" class="switch" value="14">
+    <input type="checkbox" class="switch" value="13">
+    <input type="checkbox" class="switch" value="12">
+    <input type="checkbox" class="switch" value="11">
+    <input type="checkbox" class="switch" value="10">
+    <input type="checkbox" class="switch" value="9">
+    <input type="checkbox" class="switch" value="8">
+    <input type="checkbox" class="switch" value="7">
+    <input type="checkbox" class="switch" value="6">
+    <input type="checkbox" class="switch" value="5">
+    <input type="checkbox" class="switch" value="4">
+    <input type="checkbox" class="switch" value="3">
+    <input type="checkbox" class="switch" value="2">
+    <input type="checkbox" class="switch" value="1">
+    <input type="checkbox" class="switch" value="0">
+    <span id="switch_display"></span>
+
+    <hr />
+
+    <div class="float-container">
+        <div class="float-child">
+            <button id="step">STEP</button><br />
+            <button id="run">RUN/STOP</button>
+        </div>
+        <div class="float-child">
+            <button id="read">READ</button><br />
+            <button id="readNext">READ NEXT</button>
+        </div>
+        <div class="float-child">
+            <button id="write">WRITE</button><br />
+            <button id="writeNext">WRITE NEXT</button>
+        </div>
+        <div class="float-child">
+            <button id="reset">RESET</button><br />
+            <button id="clear">CLEAR</button>
+        </div>
+    </div>
+
+    <script src="./z80.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        let core = {
+            mem_read: function(address) {
+                console.log(`Reading ${address} (${niceHex(MEM[address])})`);
+                return MEM[address];
+            },
+
+            mem_write: function(address, value) {
+                console.log(`Writing ${value} to ${address}`);
+                MEM[address] = value;
+            },
+
+            io_read: function(port) {
+                console.log(`Reading one byte from port ${port}`);
+                alert("WE DON'T SUPPORT THIS YET!!");
+            },
+
+            io_write: function(port, value) {
+                console.log(`Writing ${value} to port ${port}`);
+                alert("WE DON'T SUPPORT THIS YET!!");
+            }
+        }
+
+        let proc = Z80(core);
+
+        // count by twos at 0x10
+        // 0000   3E 04                  LD   A,$04
+        // 0002   32 10 00               LD   ($0010),A
+        // 0005   3A 10 00               LD   A,($0010)
+        // 0008   3C                     INC   A
+        // 0009   3C                     INC   A
+        // 000A   32 10 00               LD   ($0010),A
+        // 000D   18 F6                  JR   $5
+        let program = [
+            0x3E, 0x00,
+            0x32, 0x10, 0x00,
+            0x3A, 0x10, 0x00,
+            0x3C,
+            0x3C,
+            0x32, 0x10, 0x00,
+            0x18, 0xF6
+        ];
+
+        let MEM = [...program, ...Array(0xFFFF - program.length).fill(0)];
+
+        let selectedAddress = 0;
+        let runningIntervalID = 0;
+
+        function niceHex(val, padding = 2) {
+            return `0x${val.toString(16).toUpperCase().padStart(padding, '0')}`;
+        }
+
+        function clearMemory() {
+            MEM = Array(0xFFFF).fill(0);
+            resetExecution();
+        }
+
+        function renderBinary(value, checkboxClass, bittage) {
+            document.querySelectorAll(`.${checkboxClass}`).forEach((elem) => elem.checked = false);
+
+            const binaryString = value.toString(2).padStart(bittage, '0').split("").reverse().join("");
+            for (var i = 0; i < binaryString.length; i++) {
+                document.querySelector(`.${checkboxClass}[value="${i}"]`).checked = binaryString.split('')[i] == 1 ? true : false;
+            }
+        }
+
+        function displaySwitchSum() {
+            const val = getSwitchValue();
+            document.querySelector('#switch_display').innerHTML = niceHex(val, 4);
+        }
+
+        function getSwitchValue() {
+            return Array.from(document.querySelectorAll('.switch:checked')).reduce((accum, currentElem) => accum + Math.pow(2, currentElem.value), 0);
+        }
+
+        function render(address, data) {
+            renderBinary(address, 'address', 16);
+            document.querySelector('#address_display').innerHTML = niceHex(address, 4);
+
+            renderBinary(data, 'data', 8);
+            document.querySelector('#data_display').innerHTML = niceHex(data, 4);
+
+            displaySwitchSum();
+        }
+
+        function read() {
+            const address = getSwitchValue();
+            const data = core.mem_read(address);
+            selectedAddress = address;
+
+            render(address, data);
+        }
+
+        function readNext() {
+            selectedAddress += 1;
+            const data = core.mem_read(selectedAddress);
+            render(selectedAddress, data);
+        }
+
+        function write() {
+            const data = getSwitchValue();
+            core.mem_write(selectedAddress, data);
+            render(selectedAddress, data);
+        }
+
+        function writeNext() {
+            selectedAddress += 1;
+            const data = getSwitchValue();
+            core.mem_write(selectedAddress, data);
+            render(selectedAddress, data);
+        }
+
+        function resetExecution() {
+            proc.reset();
+            stop_autoexecute();
+            read();
+        }
+
+        function stepExecution() {
+            proc.run_instruction();
+            read();
+        }
+
+        function stop_autoexecute() {
+            clearInterval(runningIntervalID);
+            runningIntervalID = 0;
+        }
+
+        function toggleRun() {
+            if (runningIntervalID == 0) {
+                runningIntervalID = setInterval(stepExecution, 150);
+            } else {
+                stop_autoexecute();
+            }
+        }
+
+        document.querySelectorAll('.switch').forEach((elem) => elem.addEventListener('change', displaySwitchSum, false));
+
+        document.querySelector('#step').addEventListener('click', stepExecution, false);
+        document.querySelector('#run').addEventListener('click', toggleRun, false);
+
+        document.querySelector('#read').addEventListener('click', read, false);
+        document.querySelector('#readNext').addEventListener('click', readNext, false);
+
+        document.querySelector('#write').addEventListener('click', write, false);
+        document.querySelector('#writeNext').addEventListener('click', writeNext, false);
+
+        document.querySelector('#reset').addEventListener('click', resetExecution, false);
+        document.querySelector('#clear').addEventListener('click', clearMemory, false);
+
+        resetExecution();
+    </script>
+</body>
+
+</html>

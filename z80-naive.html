@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>cpusim</title>
+</head>
+
+<body>
+
+    <h3>ROM Address</h3>
+    <input type="checkbox" class="rom_address" value="7">
+    <input type="checkbox" class="rom_address" value="6">
+    <input type="checkbox" class="rom_address" value="5">
+    <input type="checkbox" class="rom_address" value="4">
+    <input type="checkbox" class="rom_address" value="3">
+    <input type="checkbox" class="rom_address" value="2">
+    <input type="checkbox" class="rom_address" value="1">
+    <input type="checkbox" class="rom_address" value="0">
+    <span id="rom_address_display">0x00</span>
+    <br />
+    <input type="checkbox" class="rom_contents" value="7" disabled>
+    <input type="checkbox" class="rom_contents" value="6" disabled>
+    <input type="checkbox" class="rom_contents" value="5" disabled>
+    <input type="checkbox" class="rom_contents" value="4" disabled>
+    <input type="checkbox" class="rom_contents" value="3" disabled>
+    <input type="checkbox" class="rom_contents" value="2" disabled>
+    <input type="checkbox" class="rom_contents" value="1" disabled>
+    <input type="checkbox" class="rom_contents" value="0" disabled>
+    <span id="rom_contents_display">0x00</span>
+    <br />
+    &nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲&nbsp&nbsp▲
+    <br />
+    <input type="checkbox" class="rom_address_data_in" value="7">
+    <input type="checkbox" class="rom_address_data_in" value="6">
+    <input type="checkbox" class="rom_address_data_in" value="5">
+    <input type="checkbox" class="rom_address_data_in" value="4">
+    <input type="checkbox" class="rom_address_data_in" value="3">
+    <input type="checkbox" class="rom_address_data_in" value="2">
+    <input type="checkbox" class="rom_address_data_in" value="1">
+    <input type="checkbox" class="rom_address_data_in" value="0">
+    <span id="rom_address_data_in_display">0x00</span>
+    <button id="set_rom">SET ROM</button>
+
+    <br /><br />
+    <button id="execute">STEP</button>
+    <button id="reset">RESET CPU</button><br />
+    <hr />
+    <button id="autoexecute">TOGGLE AUTOEXECUTE</button><br />
+    <input type="range" id="autoexecute_delay" min="10" max="500" value="150">
+    <label for="autoexecute_delay">Delay</label>
+
+    <script src="./z80.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        let core = {
+            mem_read: function(address) {
+                console.log(`Reading ${address} (${niceHex(MEM[address])})`);
+                return MEM[address];
+            },
+
+            mem_write: function(address, value) {
+                console.log(`Writing ${value} to ${address}`);
+                MEM[address] = value;
+            },
+
+            io_read: function(port) {
+                console.log(`Reading one byte from port ${port}`);
+                alert("WE DON'T SUPPORT THIS YET!!");
+            },
+
+            io_write: function(port, value) {
+                console.log(`Writing ${value} to port ${port}`);
+                alert("WE DON'T SUPPORT THIS YET!!");
+            }
+        }
+
+        let proc = Z80(core);
+
+        // 0000   3E 05                  LD   A,$0005
+        // 0002   11 10 00               LD   DE,$0010
+        // 0005   12                     LD   (DE),A
+        // 0006   1A                     LD   A,(DE)
+        // 0007   3C                     INC   A
+        // 0008   12                     LD   (DE),A
+        // 0009   18 FA                  JR   $5
+
+        let COUNT_BY_TWOS_AT_10 = [
+            0x3E, 0x05,
+            0x11, 0x10, 0x00,
+            0x12,
+            0x1A,
+            0x3C,
+            0x3C,
+            0x12,
+            0x18, 0xF9,
+            ...Array(256).fill(0)
+        ];
+
+        let MEM = COUNT_BY_TWOS_AT_10;
+
+        let autoexecuteID = 0;
+        let autoexecuteInterval = document.getElementById('autoexecute_delay').value;
+
+        function niceHex(val) {
+            return `0x${val.toString(16).toUpperCase().padStart(2, '0')}`;
+        }
+
+        function coreDump() {
+            let mem_clone = JSON.parse(JSON.stringify(MEM));
+            let dumpDisplay = '';
+
+            while (mem_clone.length) {
+                dumpDisplay += `${niceHex(mem_clone.shift())} ${niceHex(mem_clone.shift())}\n`;
+            }
+
+            console.log(dumpDisplay);
+        }
+
+        function setUserROMAddress() {
+            const addr = Array.from(document.querySelectorAll('.rom_address:checked')).reduce((accum, currentElem) => accum + Math.pow(2, currentElem.value), 0);
+            document.getElementById('rom_address_display').innerHTML = niceHex(addr);
+            displayROMContents(addr);
+        }
+
+        function getUserROMAddress() {
+            return Array.from(document.querySelectorAll('.rom_address:checked')).reduce((accum, currentElem) => accum + Math.pow(2, currentElem.value), 0);
+        }
+
+        function displayROMContents(addr) {
+            // clear prev value
+            document.querySelectorAll('.rom_contents').forEach((elem) => elem.checked = false);
+            document.getElementById('rom_contents_display').innerHTML = niceHex(getROMContents(addr, raw = true));
+
+            let contents = getROMContents(addr).split("").reverse().join("");
+            for (var i = 0; i < 8; i++) {
+                document.querySelector(`.rom_contents[value="${i}"]`).checked = contents.split('')[i] == 1 ? true : false;
+            }
+        }
+
+        function getROMContents(addr, raw = false) {
+            const val = MEM[addr];
+            if (raw) {
+                return val;
+            } else {
+                return (MEM[addr] >>> 0).toString(2).padStart(8, '0');
+            }
+        }
+
+        function getROMAddressDataIn() {
+            return Array.from(document.querySelectorAll('.rom_address_data_in:checked')).reduce((accum, currentElem) => accum + Math.pow(2, currentElem.value), 0);
+        }
+
+        function updateAddressInDisplay() {
+            console.log(getROMAddressDataIn())
+            document.getElementById('rom_address_data_in_display').innerHTML = niceHex(getROMAddressDataIn());
+        }
+
+        function setROMContents() {
+            const curr_addr = getUserROMAddress();
+            const val = getROMAddressDataIn();
+            MEM[curr_addr] = val;
+            displayROMContents(curr_addr);
+            Array.from(document.querySelectorAll('.rom_address_data_in:checked')).forEach((elem) => elem.checked = false);
+        }
+
+        function autoexecuteToggle() {
+            if (autoexecuteID == 0) {
+                autoexecuteID = setInterval(stepExecution, autoexecuteInterval);
+            } else {
+                stop_autoexecute();
+            }
+        }
+
+        function stop_autoexecute() {
+            clearInterval(autoexecuteID);
+            autoexecuteID = 0;
+        }
+
+        function setAutoexecuteSpeed() {
+            if (autoexecuteID) {
+                // it's currently running; stop and start
+                autoexecuteToggle();
+                autoexecuteInterval = document.getElementById('autoexecute_delay').value;
+                autoexecuteToggle();
+            } else {
+                autoexecuteInterval = document.getElementById('autoexecute_delay').value;
+            }
+        }
+
+        function resetExecution() {
+            stop_autoexecute();
+            proc.reset();
+        }
+
+        function stepExecution() {
+            proc.run_instruction();
+            console.log(proc.getState()['pc'])
+            displayROMContents(getUserROMAddress());
+        }
+
+        document.querySelectorAll('.rom_address').forEach((elem) => elem.addEventListener('change', setUserROMAddress, false));
+        document.querySelectorAll('.rom_address_data_in').forEach((elem) => elem.addEventListener('change', updateAddressInDisplay, false));
+
+        document.getElementById('set_rom').addEventListener('click', setROMContents, false);
+        document.getElementById('reset').addEventListener('click', resetExecution, false);
+        document.getElementById('execute').addEventListener('click', stepExecution, false);
+        document.getElementById('autoexecute').addEventListener('click', autoexecuteToggle, false);
+        document.getElementById('autoexecute_delay').addEventListener('input', setAutoexecuteSpeed, false);
+
+        resetExecution();
+        displayROMContents(getUserROMAddress());
+    </script>
+</body>
+
+</html>
