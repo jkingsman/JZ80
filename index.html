@@ -99,7 +99,7 @@
     <script type="text/javascript">
         let core = {
             mem_read: function(address) {
-                console.log(`Reading ${address} (${niceHex(MEM[address])})`);
+                console.log(`Reading ${niceHex(address, 4)} (${niceHex(MEM[address])})`);
                 return MEM[address];
             },
 
@@ -119,7 +119,7 @@
             }
         }
 
-        let program = fibonacci;
+        let program = bouncy_bounded;
 
         let proc = Z80(core);
         let MEM = [...program, ...Array(0xFFFF - program.length).fill(0)];
@@ -209,7 +209,7 @@
 
         function toggleRun() {
             if (runningIntervalID == 0) {
-                runningIntervalID = setInterval(stepExecution, 150);
+                runningIntervalID = setInterval(stepExecution, 100);
             } else {
                 stop_autoexecute();
             }

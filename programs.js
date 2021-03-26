@@ -100,3 +100,33 @@ let fibonacci = [
     0xED, 0x53, 0x10, 0x01,   // LD   ($0110),DE
     0x76                      // HALT
 ];
+
+// make a bit bounce back and forth at $0100 within bounds
+// 0000                SHIFTLEFTPREP:
+// 0000   06 01                  LD   B,$1
+// 0002                SHIFTLEFT:
+// 0002   ED 43 FF 00            LD   ($00FF),BC
+// 0006   CB 10                  RL   B
+// 0008   30 F8                  JR   nc,SHIFTLEFT
+// 000A                SHIFTRIGHT:
+// 000A   ED 43 FF 00            LD   ($00FF),BC
+// 000E   CB 18                  RR   B
+// 0010   30 F8                  JR   nc,SHIFTRIGHT
+// 0012   18 EE                  JR   SHIFTLEFT
+
+
+let bouncy = [
+    // SHIFTLEFTPREP:
+    0x06, 0x01,             // LD   B,$1
+
+    // SHIFTLEFT
+    0xED, 0x43, 0xFF, 0x00, // LD   ($0100),BC
+    0xCB, 0x10,             // RL   B
+    0x30, 0xF8,             // JR   nc,SHIFTLEFT
+
+    // SHIFTRIGHT
+    0xED, 0x43, 0xFF, 0x00, // LD   ($0100),BC
+    0xCB, 0x18,             // RR   B
+    0x30, 0xF8,             // JR   nc,SHIFTRIGHT
+    0x18, 0xEE,             // JR   SHIFTLEFTPREP
+];
