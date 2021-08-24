@@ -14,7 +14,7 @@
             padding-right: 20px;
         }
 
-        #step, #reset, #clear {
+        #step, #clear {
             visibility: hidden;
         }
     </style>
@@ -81,8 +81,8 @@
 
     <div class="float-container">
         <div class="float-child">
-            <button id="step">STEP</button><br />
-            <button id="run">RUN/STOP</button>
+            <button id="reset">RESET</button><br />
+            <button id="run">RUN</button>
         </div>
         <div class="float-child">
             <button id="read">READ</button><br />
@@ -93,7 +93,7 @@
             <button id="writeNext">WRITE NEXT</button>
         </div>
         <div class="float-child">
-            <button id="reset">RESET</button><br />
+            <button id="step">STEP</button><br />
             <button id="clear">CLEAR</button>
         </div>
     </div>
@@ -196,6 +196,9 @@
         }
 
         function resetExecution() {
+            if (runningIntervalID != 0) {
+                stop_autoexecute();
+            }
             proc.reset();
             read();
         }
@@ -213,9 +216,6 @@
         function toggleRun() {
             if (runningIntervalID == 0) {
                 runningIntervalID = setInterval(stepExecution, 100);
-            } else {
-                stop_autoexecute();
-                resetExecution();
             }
         }
 
